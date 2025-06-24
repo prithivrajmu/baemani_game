@@ -1,75 +1,119 @@
-import { Limousine } from './limousine.js';
+import { VehicleFactory } from './vehicles/vehicleFactory.js';
+import { VEHICLE_TYPES } from './gameConfig.js';
 
 export class TrafficManager {
-  constructor(canvasWidth, canvasHeight) {
+  constructor(canvasWidth, canvasHeight, location, levelConfig) {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
-    this.limousines = [];
+    this.location = location;
+    this.levelConfig = levelConfig;
+    this.vehicles = [];
     this.spawnTimer = 0;
-    this.spawnDelay = 120 + Math.random() * 60; // 1-2 seconds at 60fps
+    this.spawnDelay = levelConfig.spawnRate;
     
-    // Define road lanes
-    this.roadCenterY = canvasHeight / 2;
-    this.roadWidth = 200;
-    this.lanes = [
-      this.roadCenterY - 60,  // Upper lane
-      this.roadCenterY,       // Center lane  
-      this.roadCenterY + 60   // Lower lane
-    ];
+    // Calculate road layout
+    this.updateRoadLayout();
+  }
+  
+  updateRoadLayout() {
+    this.roadCenterY = this.canvasHeight / 2;
+    this.roadWidth = 80 * this.levelConfig.lanes;
+    this.laneHeight = 80;
+    
+    // Create lanes based on level configuration
+    this.lanes = [];
+    const startY = this.roadCenterY - (this.roadWidth / 2) + (this.laneHeight / 2);
+    
+    for (let i = 0; i < this.levelConfig.lanes; i++) {
+      const laneY = startY + (i * this.laneHeight);
+      const direction = this.levelConfig.direction === 'twoway' ? 
+        (i % 2 === 0 ? 1 : -1) : 1;
+      
+      this.lanes.push({
+        y: laneY,
+        direction: direction
+      });
+    }
   }
   
   update() {
-    // Update spawn timer
     this.spawnTimer++;
     
-    // Spawn new limousine if timer reached
     if (this.spawnTimer >= this.spawnDelay) {
-      this.spawnLimousine();
+      this.spawnVehicle();
       this.spawnTimer = 0;
-      this.spawnDelay = 120 + Math.random() * 60; // Randomize next spawn
+      this.spawnDelay = this.levelConfig.spawnRate + Math.random() * 30;
     }
     
-    // Update all limousines
-    this.limousines.forEach(limo => {
-      limo.update();
+    // Update all vehicles
+    this.vehicles.forEach(vehicle => {
+      vehicle.update();
     });
     
-    // Remove destroyed limousines
-    this.limousines = this.limousines.filter(limo => !limo.destroyed);
+    // Remove destroyed vehicles
+    this.vehicles = this.vehicles.filter(vehicle => !vehicle.destroyed);
   }
   
-  spawnLimousine() {
+  spawnVehicle() {
+    if (this.lanes.length === 0) return;
+    
     // Choose random lane
     const randomLane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
     
-    // Spawn off-screen to the right
-    const spawnX = this.canvasWidth + 50;
-    const spawnY = randomLane - 20; // Center the limo in the lane
+    // Choose random vehicle type based on location
+    const availableVehicles = this.location.vehicles;
+    const vehicleType = this.getRandomVehicleType(availableVehicles);
     
-    const newLimo = new Limousine(spawnX, spawnY);
-    this.limousines.push(newLimo);
+    // Spawn position based on direction
+    const spawnX = randomLane.direction === 1 ? 
+      this.canvasWidth + 50 : -VEHICLE_TYPES[vehicleType].width - 50;
+    const spawnY = randomLane.y - VEHICLE_TYPES[vehicleType].height / 2;
+    
+    const newVehicle = VehicleFactory.createVehicle(vehicleType, spawnX, spawnY);
+    newVehicle.setDirection(randomLane.direction);
+    
+    this.vehicles.push(newVehicle);
+  }
+  
+  getRandomVehicleType(availableTypes) {
+    // Weighted random selection based on rarity
+    const weights = availableTypes.map(type => VEHICLE_TYPES[type].rarity);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    
+    let random = Math.random() * totalWeight;
+    
+    for (let i = 0; i < availableTypes.length; i++) {
+      random -= weights[i];
+      if (random <= 0) {
+        return availableTypes[i];
+      }
+    }
+    
+    return availableTypes[0]; // Fallback
   }
   
   render(ctx) {
-    this.limousines.forEach(limo => {
-      limo.render(ctx);
+    this.vehicles.forEach(vehicle => {
+      vehicle.render(ctx);
     });
   }
   
-  hasActiveLimousines() {
-    return this.limousines.length > 0;
+  hasActiveVehicles() {
+    return this.vehicles.length > 0;
   }
   
   updateWorldSize(canvasWidth, canvasHeight) {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
-    
-    // Recalculate lanes
-    this.roadCenterY = canvasHeight / 2;
-    this.lanes = [
-      this.roadCenterY - 60,
-      this.roadCenterY,
-      this.roadCenterY + 60
-    ];
+    this.updateRoadLayout();
+  }
+  
+  updateLevel(levelConfig) {
+    this.levelConfig = levelConfig;
+    this.updateRoadLayout();
+  }
+  
+  clearAllVehicles() {
+    this.vehicles = [];
   }
 }

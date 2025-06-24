@@ -3,16 +3,75 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Baemani - Power Slide Mayhem</title>
+    <title>Baemani - Traffic Law Mayhem</title>
     <link rel="stylesheet" href="/src/style.css">
   </head>
   <body>
     <div id="game-container">
       <canvas id="gameCanvas"></canvas>
-      <div id="instructions">
-        <h1>BAEMANI</h1>
-        <p>Use arrow keys to power slide!</p>
-        <small>Click anywhere to start audio</small>
+      
+      <!-- Character Selection Screen -->
+      <div id="character-select" class="menu-screen">
+        <h1>Choose Your Character</h1>
+        <div class="character-grid">
+          <div class="character-card" data-character="goth">
+            <div class="character-preview" id="goth-preview"></div>
+            <h3>Guitar Goth Teen</h3>
+            <p>Power slides with attitude</p>
+          </div>
+          <div class="character-card" data-character="superman">
+            <div class="character-preview" id="superman-preview"></div>
+            <h3>Superman on Crutches</h3>
+            <p>Heroically hobbles across</p>
+          </div>
+          <div class="character-card" data-character="yoga">
+            <div class="character-preview" id="yoga-preview"></div>
+            <h3>Yoga Teacher</h3>
+            <p>Zen master with soda addiction</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Location Selection Screen -->
+      <div id="location-select" class="menu-screen hidden">
+        <h1>Choose Your Location</h1>
+        <div class="location-grid">
+          <div class="location-card" data-location="chennai">
+            <h3>Chennai, India</h3>
+            <p>Auto-rickshaws, buses, and chaos</p>
+          </div>
+          <div class="location-card" data-location="newyork">
+            <h3>New York, USA</h3>
+            <p>Yellow cabs and delivery trucks</p>
+          </div>
+          <div class="location-card" data-location="thailand">
+            <h3>Bangkok, Thailand</h3>
+            <p>Tuk-tuks and motorbikes everywhere</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Game UI -->
+      <div id="game-ui" class="hidden">
+        <div id="level-info">
+          <span id="level-display">Level 1</span>
+          <span id="location-display">Chennai</span>
+        </div>
+        <div id="instructions">
+          <p>Use arrow keys to cross safely!</p>
+          <small>Click anywhere to start audio</small>
+        </div>
+      </div>
+
+      <!-- Success Screen -->
+      <div id="success-screen" class="hidden">
+        <div id="success-banner">
+          <h1>SUCCESS!</h1>
+          <div id="law-display">
+            <h3>Traffic Law of the Level</h3>
+            <p id="law-text"></p>
+          </div>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.js"></script>

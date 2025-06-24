@@ -8,20 +8,16 @@ function init() {
   canvas = document.getElementById('gameCanvas');
   ctx = canvas.getContext('2d');
   
-  // Set up canvas size
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
   
-  // Initialize game
   game = new Game(canvas, ctx);
   
-  // Set up input handling
   setupInput();
-  
-  // Start game loop
+  setupMenus();
   gameLoop();
   
-  // Audio context needs user interaction
+  // Audio initialization
   document.addEventListener('click', () => {
     game.initAudio();
   }, { once: true });
@@ -42,7 +38,6 @@ function setupInput() {
   window.addEventListener('keydown', (e) => {
     keys[e.code] = true;
     
-    // Prevent default arrow key scrolling
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
       e.preventDefault();
     }
@@ -52,15 +47,81 @@ function setupInput() {
     keys[e.code] = false;
   });
   
-  // Pass input to game
   game.setInput(keys);
+}
+
+function setupMenus() {
+  // Character selection
+  const characterCards = document.querySelectorAll('.character-card');
+  characterCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const characterType = card.dataset.character;
+      game.selectCharacter(characterType);
+      showLocationSelect();
+    });
+  });
+  
+  // Location selection
+  const locationCards = document.querySelectorAll('.location-card');
+  locationCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const locationType = card.dataset.location;
+      game.selectLocation(locationType);
+      showGameUI();
+    });
+  });
+}
+
+function showLocationSelect() {
+  document.getElementById('character-select').classList.add('hidden');
+  document.getElementById('location-select').classList.remove('hidden');
+}
+
+function showGameUI() {
+  document.getElementById('location-select').classList.add('hidden');
+  document.getElementById('game-ui').classList.remove('hidden');
+  
+  // Update UI displays
+  updateGameUI();
+}
+
+function updateGameUI() {
+  const levelDisplay = document.getElementById('level-display');
+  const locationDisplay = document.getElementById('location-display');
+  
+  if (levelDisplay && game.currentLevel) {
+    levelDisplay.textContent = `Level ${game.currentLevel}`;
+  }
+  
+  if (locationDisplay && game.selectedLocation) {
+    locationDisplay.textContent = game.selectedLocation.name;
+  }
+}
+
+function updateSuccessScreen() {
+  const successScreen = document.getElementById('success-screen');
+  const lawText = document.getElementById('law-text');
+  
+  if (game.gameState === 'success') {
+    successScreen.classList.remove('hidden');
+    
+    if (lawText) {
+      lawText.textContent = game.typewriterText.substring(0, game.typewriterIndex);
+    }
+  } else {
+    successScreen.classList.add('hidden');
+  }
 }
 
 function gameLoop() {
   game.update();
   game.render();
+  
+  // Update UI
+  updateGameUI();
+  updateSuccessScreen();
+  
   requestAnimationFrame(gameLoop);
 }
 
-// Start the game when page loads
 window.addEventListener('load', init);
