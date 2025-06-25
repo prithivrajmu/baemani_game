@@ -48,7 +48,7 @@ export class Game {
     
     if (this.character) {
       // Update character spawn point
-      const spawnY = this.getGoalY() + 100; // Start below the goal
+      const spawnY = this.getStartingY();
       this.character.setSpawnPoint(this.worldWidth / 2, spawnY);
     }
     
@@ -63,6 +63,14 @@ export class Game {
     const levelConfig = LEVEL_CONFIG[this.currentLevel];
     const roadWidth = 80 * levelConfig.lanes;
     return roadCenterY - roadWidth / 2 - 50;
+  }
+  
+  getStartingY() {
+    // Bottom sidewalk area (below the road)
+    const roadCenterY = this.worldHeight / 2;
+    const levelConfig = LEVEL_CONFIG[this.currentLevel];
+    const roadWidth = 80 * levelConfig.lanes;
+    return roadCenterY + roadWidth / 2 + 100;
   }
   
   getRoadBounds() {
@@ -95,9 +103,11 @@ export class Game {
     this.currentLevel = 1;
     
     // Create character at bottom of screen (starting position)
-    const roadBounds = this.getRoadBounds();
-    const spawnY = roadBounds.bottom + 100; // Start below the road
     const spawnX = this.worldWidth / 2;
+    const spawnY = this.getStartingY();
+    
+    console.log('Character spawn position:', spawnX, spawnY);
+    console.log('Goal position:', this.getGoalY());
     
     switch (this.selectedCharacter) {
       case 'goth':
@@ -211,9 +221,8 @@ export class Game {
     this.trafficManager.clearAllVehicles();
     
     // Reset character to starting position
-    const roadBounds = this.getRoadBounds();
-    const spawnY = roadBounds.bottom + 100;
     const spawnX = this.worldWidth / 2;
+    const spawnY = this.getStartingY();
     this.character.setSpawnPoint(spawnX, spawnY);
     this.character.respawn();
     
@@ -445,8 +454,7 @@ export class Game {
   }
   
   drawStartingArea(ctx) {
-    const roadBounds = this.getRoadBounds();
-    const startY = roadBounds.bottom + 50;
+    const startY = this.getStartingY();
     
     // Draw start line
     ctx.strokeStyle = '#FF1493';
