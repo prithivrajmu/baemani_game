@@ -1,3 +1,5 @@
+import { BaseCharacter } from './baseCharacter.js';
+
 export class BaseCharacter {
   constructor(x, y, type) {
     this.x = x;
@@ -67,7 +69,7 @@ export class BaseCharacter {
   }
   
   startMove(dirX, dirY) {
-    if (this.isMoving || this.isStuck) return;
+    if (this.isMoving || this.isStuck) return false;
     
     this.isMoving = true;
     this.moveProgress = 0;
@@ -77,6 +79,8 @@ export class BaseCharacter {
     // Calculate move destination
     this.targetX = this.x + dirX * this.moveDistance;
     this.targetY = this.y + dirY * this.moveDistance;
+    
+    return true;
   }
   
   update() {

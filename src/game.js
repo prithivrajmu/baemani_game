@@ -33,7 +33,12 @@ export class Game {
     this.typewriterIndex = 0;
     this.typewriterSpeed = 3; // Characters per frame
     
+    // Input handling
+    this.inputCooldown = 0;
+    this.inputDelay = 10; // Frames between inputs
+    
     this.updateWorldSize();
+    console.log('Game initialized');
   }
   
   updateWorldSize() {
@@ -43,7 +48,7 @@ export class Game {
     
     if (this.character) {
       // Update character spawn point
-      const spawnY = this.getGoalY() - 50;
+      const spawnY = this.getGoalY() + 100; // Start below the goal
       this.character.setSpawnPoint(this.worldWidth / 2, spawnY);
     }
     
@@ -72,22 +77,26 @@ export class Game {
   }
   
   selectCharacter(characterType) {
+    console.log('Selecting character:', characterType);
     this.selectedCharacter = characterType;
     this.gameState = 'location-select';
   }
   
   selectLocation(locationKey) {
+    console.log('Selecting location:', locationKey);
     this.selectedLocation = LOCATIONS[locationKey];
     this.selectedLocation.key = locationKey;
     this.startGame();
   }
   
   startGame() {
+    console.log('Starting game with character:', this.selectedCharacter, 'location:', this.selectedLocation.key);
     this.gameState = 'playing';
     this.currentLevel = 1;
     
-    // Create character
-    const spawnY = this.getGoalY() - 50;
+    // Create character at bottom of screen (starting position)
+    const roadBounds = this.getRoadBounds();
+    const spawnY = roadBounds.bottom + 100; // Start below the road
     const spawnX = this.worldWidth / 2;
     
     switch (this.selectedCharacter) {
@@ -112,6 +121,8 @@ export class Game {
       this.selectedLocation, 
       levelConfig
     );
+    
+    console.log('Game started successfully');
   }
   
   setInput(keys) {
@@ -146,6 +157,7 @@ export class Game {
     
     const goalY = this.getGoalY();
     if (this.character.y <= goalY && !this.character.isStuck) {
+      console.log('Success! Character reached goal');
       this.triggerSuccess();
     }
   }
@@ -155,11 +167,13 @@ export class Game {
     
     if (this.character.stuckToVehicle && 
         this.character.stuckToVehicle.isOffScreen(this.worldWidth)) {
+      console.log('Respawning character');
       this.character.respawn();
     }
   }
   
   triggerSuccess() {
+    console.log('Triggering success state');
     this.gameState = 'success';
     this.successTimer = 0;
     this.typewriterIndex = 0;
@@ -185,6 +199,7 @@ export class Game {
   }
   
   nextLevel() {
+    console.log('Advancing to next level');
     this.currentLevel++;
     if (this.currentLevel > 10) {
       this.currentLevel = 10; // Max level
@@ -195,13 +210,22 @@ export class Game {
     this.trafficManager.updateLevel(levelConfig);
     this.trafficManager.clearAllVehicles();
     
-    // Reset character
+    // Reset character to starting position
+    const roadBounds = this.getRoadBounds();
+    const spawnY = roadBounds.bottom + 100;
+    const spawnX = this.worldWidth / 2;
+    this.character.setSpawnPoint(spawnX, spawnY);
     this.character.respawn();
     
     this.gameState = 'playing';
   }
   
   update() {
+    // Decrease input cooldown
+    if (this.inputCooldown > 0) {
+      this.inputCooldown--;
+    }
+    
     if (this.gameState === 'playing') {
       this.updatePlaying();
     } else if (this.gameState === 'success') {
@@ -216,30 +240,28 @@ export class Game {
   }
   
   updatePlaying() {
-    // Handle input
-    if (this.character && !this.character.isStuck) {
+    // Handle input with cooldown
+    if (this.character && !this.character.isStuck && this.inputCooldown === 0) {
       let moved = false;
       const roadBounds = this.getRoadBounds();
       
       if (this.keys['ArrowUp'] && this.character.y > 50) {
         this.character.startMove(0, -1);
         moved = true;
-      }
-      if (this.keys['ArrowDown'] && this.character.y < roadBounds.bottom + 50) {
+      } else if (this.keys['ArrowDown'] && this.character.y < this.worldHeight - 50) {
         this.character.startMove(0, 1);
         moved = true;
-      }
-      if (this.keys['ArrowLeft'] && this.character.x > 50) {
+      } else if (this.keys['ArrowLeft'] && this.character.x > 50) {
         this.character.startMove(-1, 0);
         moved = true;
-      }
-      if (this.keys['ArrowRight'] && this.character.x < this.worldWidth - 50) {
+      } else if (this.keys['ArrowRight'] && this.character.x < this.worldWidth - 50) {
         this.character.startMove(1, 0);
         moved = true;
       }
       
       if (moved) {
         this.audioManager.playMoveSound(this.selectedCharacter);
+        this.inputCooldown = this.inputDelay;
       }
     }
     
@@ -312,6 +334,9 @@ export class Game {
     
     // Draw goal area
     this.drawGoalArea(ctx);
+    
+    // Draw starting area
+    this.drawStartingArea(ctx);
   }
   
   drawBackground(ctx) {
@@ -417,5 +442,26 @@ export class Game {
     ctx.font = 'bold 20px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('GOAL', this.worldWidth / 2, goalY - 10);
+  }
+  
+  drawStartingArea(ctx) {
+    const roadBounds = this.getRoadBounds();
+    const startY = roadBounds.bottom + 50;
+    
+    // Draw start line
+    ctx.strokeStyle = '#FF1493';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 5]);
+    ctx.beginPath();
+    ctx.moveTo(0, startY);
+    ctx.lineTo(this.worldWidth, startY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Draw "START" text
+    ctx.fillStyle = '#FF1493';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('START', this.worldWidth / 2, startY + 30);
   }
 }
