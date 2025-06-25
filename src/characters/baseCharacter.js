@@ -1,5 +1,3 @@
-import { BaseCharacter } from './baseCharacter.js';
-
 export class BaseCharacter {
   constructor(x, y, type) {
     this.x = x;
