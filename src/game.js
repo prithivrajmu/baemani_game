@@ -13,7 +13,7 @@ export class Game {
     this.audioManager = new AudioManager();
     
     // Game state
-    this.gameState = 'character-select'; // character-select, location-select, playing, success
+    this.gameState = 'character-select'; // character-select, location-select, playing
     this.selectedCharacter = null;
     this.selectedLocation = null;
     this.currentLevel = 1;
@@ -25,13 +25,6 @@ export class Game {
     // Game objects
     this.character = null;
     this.trafficManager = null;
-    
-    // Success state
-    this.successTimer = 0;
-    this.successDuration = 300; // 5 seconds at 60fps
-    this.typewriterText = '';
-    this.typewriterIndex = 0;
-    this.typewriterSpeed = 3; // Characters per frame
     
     // Input handling
     this.inputCooldown = 0;
@@ -103,9 +96,6 @@ export class Game {
     // Reset game state properly
     this.gameState = 'playing';
     this.currentLevel = 1;
-    this.successTimer = 0;
-    this.typewriterIndex = 0;
-    this.typewriterText = '';
     
     // Create character at bottom of screen (starting position)
     const spawnX = this.worldWidth / 2;
@@ -176,7 +166,7 @@ export class Game {
     
     if (this.character.y <= goalY && !this.character.isStuck) {
       console.log('Success! Character reached goal');
-      this.triggerSuccess();
+      this.nextLevel();
     }
   }
   
@@ -190,38 +180,14 @@ export class Game {
     }
   }
   
-  triggerSuccess() {
-    console.log('Triggering success state');
-    this.gameState = 'success';
-    this.successTimer = 0;
-    this.typewriterIndex = 0;
-    this.typewriterText = this.getRandomTrafficLaw();
-    
-    this.audioManager.playSuccessSound();
-    
-    // Pause traffic
-    if (this.trafficManager) {
-      this.trafficManager.vehicles.forEach(vehicle => {
-        vehicle.speed = 0;
-      });
-    }
-  }
-  
-  getRandomTrafficLaw() {
-    const locationLaws = TRAFFIC_LAWS[this.selectedLocation.key] || [];
-    const globalLaws = TRAFFIC_LAWS.global || [];
-    const allLaws = [...locationLaws, ...globalLaws];
-    
-    return allLaws[Math.floor(Math.random() * allLaws.length)] || 
-           "Always look both ways before crossing!";
-  }
-  
   nextLevel() {
     console.log('Advancing to next level');
     this.currentLevel++;
     if (this.currentLevel > 10) {
       this.currentLevel = 10; // Max level
     }
+    
+    this.audioManager.playSuccessSound();
     
     // Update traffic manager with new level config
     const levelConfig = LEVEL_CONFIG[this.currentLevel];
@@ -234,7 +200,7 @@ export class Game {
     this.character.setSpawnPoint(spawnX, spawnY);
     this.character.respawn();
     
-    // Return to playing state
+    // Continue playing
     this.gameState = 'playing';
     console.log('Next level started, state:', this.gameState);
   }
@@ -247,8 +213,6 @@ export class Game {
     
     if (this.gameState === 'playing') {
       this.updatePlaying();
-    } else if (this.gameState === 'success') {
-      this.updateSuccess();
     }
     
     // Update world size if window resized
@@ -304,28 +268,11 @@ export class Game {
     this.checkForRespawn();
   }
   
-  updateSuccess() {
-    this.successTimer++;
-    
-    // Typewriter effect
-    if (this.typewriterIndex < this.typewriterText.length) {
-      if (this.successTimer % this.typewriterSpeed === 0) {
-        this.typewriterIndex++;
-        this.audioManager.playTypewriterSound();
-      }
-    }
-    
-    // Auto-advance to next level
-    if (this.successTimer >= this.successDuration) {
-      this.nextLevel();
-    }
-  }
-  
   render() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.worldWidth, this.worldHeight);
     
-    if (this.gameState === 'playing' || this.gameState === 'success') {
+    if (this.gameState === 'playing') {
       this.renderGame(ctx);
     }
   }

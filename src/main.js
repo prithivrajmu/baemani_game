@@ -260,28 +260,12 @@ function updateGameUI() {
   }
 }
 
-function updateSuccessScreen() {
-  const successScreen = document.getElementById('success-screen');
-  const lawText = document.getElementById('law-text');
-  
-  if (game.gameState === 'success') {
-    successScreen.classList.remove('hidden');
-    
-    if (lawText) {
-      lawText.textContent = game.typewriterText.substring(0, game.typewriterIndex);
-    }
-  } else {
-    successScreen.classList.add('hidden');
-  }
-}
-
 function gameLoop() {
   game.update();
   game.render();
   
   // Update UI
   updateGameUI();
-  updateSuccessScreen();
   
   requestAnimationFrame(gameLoop);
 }
