@@ -58,19 +58,19 @@ export class Game {
   }
   
   getGoalY() {
-    // Top sidewalk area
+    // Top sidewalk area - well above the road
     const roadCenterY = this.worldHeight / 2;
     const levelConfig = LEVEL_CONFIG[this.currentLevel];
     const roadWidth = 80 * levelConfig.lanes;
-    return roadCenterY - roadWidth / 2 - 50;
+    return roadCenterY - roadWidth / 2 - 80; // Increased distance from road
   }
   
   getStartingY() {
-    // Bottom sidewalk area (below the road)
+    // Bottom sidewalk area - well below the road
     const roadCenterY = this.worldHeight / 2;
     const levelConfig = LEVEL_CONFIG[this.currentLevel];
     const roadWidth = 80 * levelConfig.lanes;
-    return roadCenterY + roadWidth / 2 + 100;
+    return roadCenterY + roadWidth / 2 + 80; // Increased distance from road
   }
   
   getRoadBounds() {
@@ -99,8 +99,13 @@ export class Game {
   
   startGame() {
     console.log('Starting game with character:', this.selectedCharacter, 'location:', this.selectedLocation.key);
+    
+    // Reset game state properly
     this.gameState = 'playing';
     this.currentLevel = 1;
+    this.successTimer = 0;
+    this.typewriterIndex = 0;
+    this.typewriterText = '';
     
     // Create character at bottom of screen (starting position)
     const spawnX = this.worldWidth / 2;
@@ -108,6 +113,7 @@ export class Game {
     
     console.log('Character spawn position:', spawnX, spawnY);
     console.log('Goal position:', this.getGoalY());
+    console.log('Distance to goal:', spawnY - this.getGoalY());
     
     switch (this.selectedCharacter) {
       case 'goth':
@@ -132,7 +138,7 @@ export class Game {
       levelConfig
     );
     
-    console.log('Game started successfully');
+    console.log('Game started successfully, state:', this.gameState);
   }
   
   setInput(keys) {
@@ -166,6 +172,8 @@ export class Game {
     if (!this.character || this.gameState !== 'playing') return;
     
     const goalY = this.getGoalY();
+    console.log('Checking success - Character Y:', this.character.y, 'Goal Y:', goalY, 'Is stuck:', this.character.isStuck);
+    
     if (this.character.y <= goalY && !this.character.isStuck) {
       console.log('Success! Character reached goal');
       this.triggerSuccess();
@@ -226,7 +234,9 @@ export class Game {
     this.character.setSpawnPoint(spawnX, spawnY);
     this.character.respawn();
     
+    // Return to playing state
     this.gameState = 'playing';
+    console.log('Next level started, state:', this.gameState);
   }
   
   update() {
@@ -255,17 +265,13 @@ export class Game {
       const roadBounds = this.getRoadBounds();
       
       if (this.keys['ArrowUp'] && this.character.y > 50) {
-        this.character.startMove(0, -1);
-        moved = true;
+        moved = this.character.startMove(0, -1);
       } else if (this.keys['ArrowDown'] && this.character.y < this.worldHeight - 50) {
-        this.character.startMove(0, 1);
-        moved = true;
+        moved = this.character.startMove(0, 1);
       } else if (this.keys['ArrowLeft'] && this.character.x > 50) {
-        this.character.startMove(-1, 0);
-        moved = true;
+        moved = this.character.startMove(-1, 0);
       } else if (this.keys['ArrowRight'] && this.character.x < this.worldWidth - 50) {
-        this.character.startMove(1, 0);
-        moved = true;
+        moved = this.character.startMove(1, 0);
       }
       
       if (moved) {
