@@ -11,6 +11,7 @@ export class BaseVehicle {
     this.destroyed = false;
     this.animationTime = 0;
     this.direction = 1; // 1 for right-to-left, -1 for left-to-right
+    this.canvasWidth = 0; // Will be set by traffic manager
   }
   
   setDirection(direction) {
@@ -20,13 +21,18 @@ export class BaseVehicle {
     }
   }
   
+  setCanvasWidth(canvasWidth) {
+    this.canvasWidth = canvasWidth;
+  }
+  
   update() {
     this.x += this.speed;
     this.animationTime += 0.1;
     
     // Mark for destruction when off screen
+    const canvasWidth = this.canvasWidth || window.innerWidth;
     if ((this.direction === 1 && this.x + this.width < -50) ||
-        (this.direction === -1 && this.x > window.innerWidth + 50)) {
+        (this.direction === -1 && this.x > canvasWidth + 50)) {
       this.destroyed = true;
     }
   }
@@ -48,12 +54,16 @@ export class BaseVehicle {
   render(ctx) {
     ctx.save();
     
-    // Flip horizontally if going right-to-left
+    // Translate to vehicle position
+    ctx.translate(this.x, this.y);
+    
+    // Flip horizontally if going left-to-right
     if (this.direction === -1) {
       ctx.scale(-1, 1);
-      ctx.translate(-this.x - this.width, 0);
+      ctx.translate(-this.width, 0);
     }
     
+    // Draw vehicle at origin (0, 0) relative to vehicle position
     this.drawVehicle(ctx);
     ctx.restore();
   }

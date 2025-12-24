@@ -25,12 +25,20 @@ function init() {
 }
 
 function resizeCanvas() {
+  if (!canvas || !ctx) return;
+  
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * window.devicePixelRatio;
   canvas.height = rect.height * window.devicePixelRatio;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
   canvas.style.width = rect.width + 'px';
   canvas.style.height = rect.height + 'px';
+  
+  // Update game world size if game exists
+  if (game) {
+    game.updateWorldSize();
+  }
 }
 
 function setupCharacterPreviews() {

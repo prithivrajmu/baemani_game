@@ -71,6 +71,7 @@ export class TrafficManager {
     
     const newVehicle = VehicleFactory.createVehicle(vehicleType, spawnX, spawnY);
     newVehicle.setDirection(randomLane.direction);
+    newVehicle.setCanvasWidth(this.canvasWidth);
     
     this.vehicles.push(newVehicle);
   }
@@ -106,6 +107,11 @@ export class TrafficManager {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
     this.updateRoadLayout();
+    
+    // Update canvas width for all existing vehicles
+    this.vehicles.forEach(vehicle => {
+      vehicle.setCanvasWidth(canvasWidth);
+    });
   }
   
   updateLevel(levelConfig) {
