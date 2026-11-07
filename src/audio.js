@@ -1,4 +1,5 @@
 import * as Tone from 'tone';
+import { load, save } from './storage.js';
 
 export class AudioManager {
   constructor() {
@@ -7,6 +8,13 @@ export class AudioManager {
     this.effects = {};
     this.vehicleRumble = null;
     this.rumblePlaying = false;
+    this.muted = load('muted', false);
+  }
+  
+  setMuted(muted) {
+    this.muted = muted;
+    save('muted', muted);
+    if (this.initialized) Tone.getDestination().mute = muted;
   }
   
   async init() {
@@ -84,6 +92,7 @@ export class AudioManager {
       this.vehicleRumble.chain(this.effects.rumbleFilter, this.effects.rumbleGain, Tone.Destination);
       
       this.initialized = true;
+      Tone.getDestination().mute = this.muted;
       console.log('Audio initialized!');
     } catch (error) {
       console.error('Failed to initialize audio:', error);

@@ -10,23 +10,18 @@ export class BaseVehicle {
     this.color = config.color;
     this.destroyed = false;
     this.animationTime = 0;
-    this.direction = 1; // 1 for right-to-left, -1 for left-to-right
+    this.direction = 1; // 1 = drives right-to-left, -1 = left-to-right (art faces right, so 1 is mirrored)
   }
   
   setDirection(direction) {
     this.direction = direction;
-    if (direction === -1) {
-      this.speed = -this.speed;
-    }
   }
   
   update() {
-    this.x += this.speed;
+    this.x -= this.speed * this.direction;
     this.animationTime += 0.1;
     
-    // Mark for destruction when off screen
-    if ((this.direction === 1 && this.x + this.width < -50) ||
-        (this.direction === -1 && this.x > window.innerWidth + 50)) {
+    if (this.isOffScreen(window.innerWidth)) {
       this.destroyed = true;
     }
   }
@@ -48,8 +43,8 @@ export class BaseVehicle {
   render(ctx) {
     ctx.save();
     
-    // Flip horizontally if going right-to-left
-    if (this.direction === -1) {
+    // Sprites face right; mirror them when driving right-to-left
+    if (this.direction === 1) {
       ctx.scale(-1, 1);
       ctx.translate(-this.x - this.width, 0);
     }

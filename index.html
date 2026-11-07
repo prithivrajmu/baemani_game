@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Baemani - Traffic Law Mayhem</title>
-    <link rel="stylesheet" href="/src/style.css">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="./src/style.css">
   </head>
   <body>
     <div id="game-container">
@@ -12,7 +13,10 @@
       
       <!-- Character Selection Screen -->
       <div id="character-select" class="menu-screen">
-        <h1>Choose Your Character</h1>
+        <h1>Baemani</h1>
+        <p class="tagline">Cross the road. Dodge the traffic. 3 lives, 10 levels.</p>
+        <p class="tagline" id="best-display"></p>
+        <h2>Choose Your Character</h2>
         <div class="character-grid">
           <div class="character-card" data-character="goth">
             <div class="character-preview" id="goth-preview"></div>
@@ -56,13 +60,42 @@
         <div id="level-info">
           <span id="level-display">Level 1</span>
           <span id="location-display">Chennai</span>
+          <span id="lives-display"></span>
         </div>
         <div id="instructions">
           <p>Use arrow keys to cross safely!</p>
-          <small>Click anywhere to start audio</small>
+          <small>P = pause, M = mute</small>
+        </div>
+        <div id="hud-buttons">
+          <button id="pause-btn" type="button" aria-label="Pause">Pause</button>
+          <button id="mute-btn" type="button" aria-label="Toggle sound">Sound: on</button>
+        </div>
+        <div id="dpad">
+          <button type="button" data-key="ArrowUp" aria-label="Up" style="grid-area:u">&#9650;</button>
+          <button type="button" data-key="ArrowLeft" aria-label="Left" style="grid-area:l">&#9664;</button>
+          <button type="button" data-key="ArrowDown" aria-label="Down" style="grid-area:d">&#9660;</button>
+          <button type="button" data-key="ArrowRight" aria-label="Right" style="grid-area:r">&#9654;</button>
+        </div>
+      </div>
+
+      <div id="pause-screen" class="menu-screen overlay hidden">
+        <h1>Paused</h1>
+        <div class="menu-buttons">
+          <button type="button" id="resume-btn">Resume</button>
+          <button type="button" id="pause-menu-btn">Main menu</button>
+        </div>
+      </div>
+
+      <div id="gameover-screen" class="menu-screen overlay hidden">
+        <h1 id="gameover-title">Game Over</h1>
+        <p class="tagline" id="gameover-stats"></p>
+        <p class="tagline tip" id="gameover-tip"></p>
+        <div class="menu-buttons">
+          <button type="button" id="again-btn">Play again</button>
+          <button type="button" id="gameover-menu-btn">Main menu</button>
         </div>
       </div>
     </div>
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="./src/main.js"></script>
   </body>
 </html>
