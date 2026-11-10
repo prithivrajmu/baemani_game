@@ -3,7 +3,11 @@ import { SupermanCharacter } from './characters/supermanCharacter.js';
 import { YogaCharacter } from './characters/yogaCharacter.js';
 import { AudioManager } from './audio.js';
 import { TrafficManager } from './trafficManager.js';
-import { CHARACTERS, LOCATIONS, TRAFFIC_LAWS, LEVEL_CONFIG } from './gameConfig.js';
+import { LOCATIONS, TRAFFIC_LAWS, LEVEL_CONFIG } from './gameConfig.js';
+import { load, save } from './storage.js';
+
+const MAX_LEVEL = 10;
+const START_LIVES = 3;
 
 export class Game {
   constructor(canvas, ctx) {
@@ -17,6 +21,10 @@ export class Game {
     this.selectedCharacter = null;
     this.selectedLocation = null;
     this.currentLevel = 1;
+    this.lives = START_LIVES;
+    this.best = load('best', 0); // most levels cleared in one run
+    this.won = false;
+    this.tip = '';
     
     // Game world dimensions
     this.worldWidth = 0;
@@ -31,7 +39,6 @@ export class Game {
     this.inputDelay = 10; // Frames between inputs
     
     this.updateWorldSize();
-    console.log('Game initialized');
   }
   
   updateWorldSize() {
@@ -47,13 +54,21 @@ export class Game {
     
     if (this.trafficManager) {
       this.trafficManager.updateWorldSize(this.worldWidth, this.worldHeight);
+      this.trafficManager.updateLevel(this.levelConfig);
     }
   }
   
+  // Lanes are 80px each and the road needs ~80px of sidewalk either side, so clamp to what fits the screen.
+  get levelConfig() {
+    const cfg = LEVEL_CONFIG[this.currentLevel];
+    const fit = Math.max(1, Math.floor((this.worldHeight - 240) / 80));
+    return cfg.lanes > fit ? { ...cfg, lanes: fit } : cfg;
+  }
+
   getGoalY() {
     // Top sidewalk area - well above the road
     const roadCenterY = this.worldHeight / 2;
-    const levelConfig = LEVEL_CONFIG[this.currentLevel];
+    const levelConfig = this.levelConfig;
     const roadWidth = 80 * levelConfig.lanes;
     return roadCenterY - roadWidth / 2 - 80; // Increased distance from road
   }
@@ -61,14 +76,14 @@ export class Game {
   getStartingY() {
     // Bottom sidewalk area - well below the road
     const roadCenterY = this.worldHeight / 2;
-    const levelConfig = LEVEL_CONFIG[this.currentLevel];
+    const levelConfig = this.levelConfig;
     const roadWidth = 80 * levelConfig.lanes;
     return roadCenterY + roadWidth / 2 + 80; // Increased distance from road
   }
   
   getRoadBounds() {
     const roadCenterY = this.worldHeight / 2;
-    const levelConfig = LEVEL_CONFIG[this.currentLevel];
+    const levelConfig = this.levelConfig;
     const roadWidth = 80 * levelConfig.lanes;
     
     return {
@@ -78,32 +93,28 @@ export class Game {
   }
   
   selectCharacter(characterType) {
-    console.log('Selecting character:', characterType);
     this.selectedCharacter = characterType;
     this.gameState = 'location-select';
   }
   
   selectLocation(locationKey) {
-    console.log('Selecting location:', locationKey);
     this.selectedLocation = LOCATIONS[locationKey];
     this.selectedLocation.key = locationKey;
     this.startGame();
   }
   
   startGame() {
-    console.log('Starting game with character:', this.selectedCharacter, 'location:', this.selectedLocation.key);
     
     // Reset game state properly
     this.gameState = 'playing';
     this.currentLevel = 1;
+    this.lives = START_LIVES;
+    this.won = false;
     
     // Create character at bottom of screen (starting position)
     const spawnX = this.worldWidth / 2;
     const spawnY = this.getStartingY();
     
-    console.log('Character spawn position:', spawnX, spawnY);
-    console.log('Goal position:', this.getGoalY());
-    console.log('Distance to goal:', spawnY - this.getGoalY());
     
     switch (this.selectedCharacter) {
       case 'goth':
@@ -120,7 +131,7 @@ export class Game {
     this.character.setSpawnPoint(spawnX, spawnY);
     
     // Create traffic manager
-    const levelConfig = LEVEL_CONFIG[this.currentLevel];
+    const levelConfig = this.levelConfig;
     this.trafficManager = new TrafficManager(
       this.worldWidth, 
       this.worldHeight, 
@@ -128,7 +139,6 @@ export class Game {
       levelConfig
     );
     
-    console.log('Game started successfully, state:', this.gameState);
   }
   
   setInput(keys) {
@@ -147,6 +157,7 @@ export class Game {
     this.trafficManager.vehicles.forEach(vehicle => {
       if (!vehicle || vehicle.destroyed) return;
       
+      if (this.character.isStuck) return; // one hit per vehicle pile-up
       const vehicleBounds = vehicle.getBounds();
       
       if (characterBounds.x < vehicleBounds.x + vehicleBounds.width &&
@@ -156,6 +167,7 @@ export class Game {
         
         this.character.getStuckToVehicle(vehicle);
         this.audioManager.playCrashSound();
+        if (--this.lives <= 0) this.endGame(false);
       }
     });
   }
@@ -164,10 +176,8 @@ export class Game {
     if (!this.character || this.gameState !== 'playing') return;
     
     const goalY = this.getGoalY();
-    console.log('Checking success - Character Y:', this.character.y, 'Goal Y:', goalY, 'Is stuck:', this.character.isStuck);
     
     if (this.character.y <= goalY && !this.character.isStuck) {
-      console.log('Success! Character reached goal');
       this.nextLevel();
     }
   }
@@ -175,24 +185,22 @@ export class Game {
   checkForRespawn() {
     if (!this.character || !this.character.isStuck) return;
     
-    if (this.character.stuckToVehicle && 
-        this.character.stuckToVehicle.isOffScreen(this.worldWidth)) {
-      console.log('Respawning character');
+    // Slow buses can carry you for ages; cap the ride at ~3s (struggleTime grows 0.2/frame).
+    if (this.character.struggleTime > 36 ||
+        (this.character.stuckToVehicle && this.character.stuckToVehicle.isOffScreen(this.worldWidth))) {
       this.character.respawn();
     }
   }
   
   nextLevel() {
-    console.log('Advancing to next level');
-    this.currentLevel++;
-    if (this.currentLevel > 10) {
-      this.currentLevel = 10; // Max level
-    }
-    
     this.audioManager.playSuccessSound();
+    if (this.currentLevel >= MAX_LEVEL) return this.endGame(true);
+    this.currentLevel++;
+    this.best = Math.max(this.best, this.currentLevel - 1);
+    save('best', this.best);
     
     // Update traffic manager with new level config
-    const levelConfig = LEVEL_CONFIG[this.currentLevel];
+    const levelConfig = this.levelConfig;
     this.trafficManager.updateLevel(levelConfig);
     this.trafficManager.clearAllVehicles();
     
@@ -204,7 +212,34 @@ export class Game {
     
     // Continue playing
     this.gameState = 'playing';
-    console.log('Next level started, state:', this.gameState);
+  }
+  
+  endGame(won) {
+    this.won = won;
+    this.gameState = 'gameover';
+    if (won) this.best = MAX_LEVEL;
+    save('best', this.best);
+    this.audioManager.stopVehicleRumble();
+    const laws = [...TRAFFIC_LAWS.global, ...(TRAFFIC_LAWS[this.selectedLocation.key] || [])];
+    this.tip = laws[Math.floor(Math.random() * laws.length)];
+  }
+  
+  get levelsCleared() {
+    return this.won ? MAX_LEVEL : this.currentLevel - 1;
+  }
+  
+  togglePause() {
+    if (this.gameState === 'playing') {
+      this.gameState = 'paused';
+      this.audioManager.stopVehicleRumble();
+    } else if (this.gameState === 'paused') {
+      this.gameState = 'playing';
+    }
+  }
+  
+  quitToMenu() {
+    this.audioManager.stopVehicleRumble();
+    this.gameState = 'character-select';
   }
   
   update() {
@@ -274,7 +309,7 @@ export class Game {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.worldWidth, this.worldHeight);
     
-    if (this.gameState === 'playing') {
+    if (this.gameState === 'playing' || this.gameState === 'paused' || this.gameState === 'gameover') {
       this.renderGame(ctx);
     }
   }
@@ -320,7 +355,7 @@ export class Game {
     if (!this.selectedLocation) return;
     
     const roadCenterY = this.worldHeight / 2;
-    const levelConfig = LEVEL_CONFIG[this.currentLevel];
+    const levelConfig = this.levelConfig;
     const roadWidth = 80 * levelConfig.lanes;
     const sidewalkWidth = 100;
     

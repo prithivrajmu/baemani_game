@@ -3,6 +3,9 @@ import { Game } from './game.js';
 let game;
 let canvas;
 let ctx;
+let last = 0;
+let acc = 0;
+const STEP = 1000 / 60; // game logic is tuned per-frame at 60fps; keep it there on 120/144Hz displays
 
 function init() {
   canvas = document.getElementById('gameCanvas');
@@ -16,10 +19,10 @@ function init() {
   setupInput();
   setupMenus();
   setupCharacterPreviews();
-  gameLoop();
+  requestAnimationFrame((t) => { last = t; gameLoop(t); });
   
-  // Audio initialization
-  document.addEventListener('click', () => {
+  // Browsers only allow audio after a user gesture (click or tap)
+  document.addEventListener('pointerdown', () => {
     game.initAudio();
   }, { once: true });
 }
@@ -32,8 +35,6 @@ function resizeCanvas() {
   canvas.height = rect.height * window.devicePixelRatio;
   ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-  canvas.style.width = rect.width + 'px';
-  canvas.style.height = rect.height + 'px';
   
   // Update game world size if game exists
   if (game) {
@@ -207,10 +208,28 @@ function setupInput() {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
       e.preventDefault();
     }
+    if (e.repeat) return;
+    if (e.code === 'KeyP' || e.code === 'Escape') game.togglePause();
+    if (e.code === 'KeyM') toggleMute();
   });
   
   window.addEventListener('keyup', (e) => {
     keys[e.code] = false;
+  });
+  
+  // Losing focus would otherwise leave a key "held" forever
+  const autoPause = () => {
+    Object.keys(keys).forEach(k => { keys[k] = false; });
+    if (game.gameState === 'playing') game.togglePause();
+  };
+  window.addEventListener('blur', autoPause);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+  
+  // On-screen d-pad (touch) drives the same key state as the keyboard
+  document.querySelectorAll('#dpad button').forEach(btn => {
+    const set = (down) => (e) => { e.preventDefault(); keys[btn.dataset.key] = down; };
+    btn.addEventListener('pointerdown', set(true));
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => btn.addEventListener(t, set(false)));
   });
   
   game.setInput(keys);
@@ -222,9 +241,8 @@ function setupMenus() {
   characterCards.forEach(card => {
     card.addEventListener('click', () => {
       const characterType = card.dataset.character;
-      console.log('Selected character:', characterType);
       game.selectCharacter(characterType);
-      showLocationSelect();
+      showScreen('location-select');
     });
   });
   
@@ -233,46 +251,68 @@ function setupMenus() {
   locationCards.forEach(card => {
     card.addEventListener('click', () => {
       const locationType = card.dataset.location;
-      console.log('Selected location:', locationType);
       game.selectLocation(locationType);
-      showGameUI();
     });
   });
-}
-
-function showLocationSelect() {
-  console.log('Showing location select');
-  document.getElementById('character-select').classList.add('hidden');
-  document.getElementById('location-select').classList.remove('hidden');
-}
-
-function showGameUI() {
-  console.log('Showing game UI');
-  document.getElementById('location-select').classList.add('hidden');
-  document.getElementById('game-ui').classList.remove('hidden');
   
-  // Update UI displays
-  updateGameUI();
+  const $ = (id) => document.getElementById(id);
+  $('pause-btn').addEventListener('click', () => game.togglePause());
+  $('resume-btn').addEventListener('click', () => game.togglePause());
+  $('mute-btn').addEventListener('click', toggleMute);
+  $('again-btn').addEventListener('click', () => game.startGame());
+  ['pause-menu-btn', 'gameover-menu-btn'].forEach(id =>
+    $(id).addEventListener('click', () => game.quitToMenu()));
 }
 
+function toggleMute() {
+  game.audioManager.setMuted(!game.audioManager.muted);
+}
+
+const SCREENS = ['character-select', 'location-select', 'game-ui', 'pause-screen', 'gameover-screen'];
+
+// Which screens are visible for each game state
+const VISIBLE = {
+  'character-select': ['character-select'],
+  'location-select': ['location-select'],
+  playing: ['game-ui'],
+  paused: ['game-ui', 'pause-screen'],
+  gameover: ['game-ui', 'gameover-screen']
+};
+
+function showScreen(state) {
+  SCREENS.forEach(id =>
+    document.getElementById(id).classList.toggle('hidden', !VISIBLE[state].includes(id)));
+}
+
+// Only touch the DOM when something changed
+let shown = '';
 function updateGameUI() {
-  const levelDisplay = document.getElementById('level-display');
-  const locationDisplay = document.getElementById('location-display');
+  const g = game;
+  const muted = g.audioManager.muted;
+  const key = [g.gameState, g.currentLevel, g.lives, g.best, muted, g.selectedLocation?.name].join('|');
+  if (key === shown) return;
+  shown = key;
   
-  if (levelDisplay && game.currentLevel) {
-    levelDisplay.textContent = `Level ${game.currentLevel}`;
-  }
-  
-  if (locationDisplay && game.selectedLocation) {
-    locationDisplay.textContent = game.selectedLocation.name;
-  }
+  showScreen(g.gameState);
+  const text = (id, t) => { document.getElementById(id).textContent = t; };
+  text('level-display', `Level ${g.currentLevel}/10`);
+  text('location-display', g.selectedLocation?.name ?? '');
+  text('lives-display', `Lives: ${g.lives}   Best: ${g.best}`);
+  text('mute-btn', `Sound: ${muted ? 'off' : 'on'}`);
+  text('best-display', g.best ? `Best run: ${g.best} level${g.best > 1 ? 's' : ''} cleared` : '');
+  text('gameover-title', g.won ? 'You made it!' : 'Game Over');
+  text('gameover-stats', `Levels cleared: ${g.levelsCleared} (best ${g.best})`);
+  text('gameover-tip', `Road safety: ${g.tip}`);
 }
 
-function gameLoop() {
-  game.update();
+function gameLoop(t) {
+  acc = Math.min(acc + (t - last), STEP * 5);
+  last = t;
+  while (acc >= STEP) {
+    game.update();
+    acc -= STEP;
+  }
   game.render();
-  
-  // Update UI
   updateGameUI();
   
   requestAnimationFrame(gameLoop);

@@ -10,15 +10,12 @@ export class BaseVehicle {
     this.color = config.color;
     this.destroyed = false;
     this.animationTime = 0;
-    this.direction = 1; // 1 for right-to-left, -1 for left-to-right
-    this.canvasWidth = 0; // Will be set by traffic manager
+    this.direction = 1; // 1 = drives right-to-left, -1 = left-to-right (art faces right, so 1 is mirrored)
+    this.canvasWidth = 0;
   }
   
   setDirection(direction) {
     this.direction = direction;
-    if (direction === -1) {
-      this.speed = -this.speed;
-    }
   }
   
   setCanvasWidth(canvasWidth) {
@@ -26,13 +23,10 @@ export class BaseVehicle {
   }
   
   update() {
-    this.x += this.speed;
+    this.x -= this.speed * this.direction;
     this.animationTime += 0.1;
     
-    // Mark for destruction when off screen
-    const canvasWidth = this.canvasWidth || window.innerWidth;
-    if ((this.direction === 1 && this.x + this.width < -50) ||
-        (this.direction === -1 && this.x > canvasWidth + 50)) {
+    if (this.isOffScreen(this.canvasWidth || window.innerWidth)) {
       this.destroyed = true;
     }
   }
@@ -54,11 +48,9 @@ export class BaseVehicle {
   render(ctx) {
     ctx.save();
     
-    // Translate to vehicle position
     ctx.translate(this.x, this.y);
-    
-    // Flip horizontally if going left-to-right
-    if (this.direction === -1) {
+    // Sprites face right; mirror when driving right-to-left.
+    if (this.direction === 1) {
       ctx.scale(-1, 1);
       ctx.translate(-this.width, 0);
     }
