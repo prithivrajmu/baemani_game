@@ -150,11 +150,13 @@ export class Game {
   }
   
   checkCollisions() {
-    if (!this.character || this.character.isStuck || this.gameState !== 'playing') return;
+    if (!this.character || this.character.isStuck || this.gameState !== 'playing' || !this.trafficManager) return;
     
     const characterBounds = this.character.getBounds();
     
     this.trafficManager.vehicles.forEach(vehicle => {
+      if (!vehicle || vehicle.destroyed) return;
+      
       if (this.character.isStuck) return; // one hit per vehicle pile-up
       const vehicleBounds = vehicle.getBounds();
       

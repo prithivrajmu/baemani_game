@@ -11,17 +11,22 @@ export class BaseVehicle {
     this.destroyed = false;
     this.animationTime = 0;
     this.direction = 1; // 1 = drives right-to-left, -1 = left-to-right (art faces right, so 1 is mirrored)
+    this.canvasWidth = 0;
   }
   
   setDirection(direction) {
     this.direction = direction;
   }
   
+  setCanvasWidth(canvasWidth) {
+    this.canvasWidth = canvasWidth;
+  }
+  
   update() {
     this.x -= this.speed * this.direction;
     this.animationTime += 0.1;
     
-    if (this.isOffScreen(window.innerWidth)) {
+    if (this.isOffScreen(this.canvasWidth || window.innerWidth)) {
       this.destroyed = true;
     }
   }
@@ -43,12 +48,14 @@ export class BaseVehicle {
   render(ctx) {
     ctx.save();
     
-    // Sprites face right; mirror them when driving right-to-left
+    ctx.translate(this.x, this.y);
+    // Sprites face right; mirror when driving right-to-left.
     if (this.direction === 1) {
       ctx.scale(-1, 1);
-      ctx.translate(-this.x - this.width, 0);
+      ctx.translate(-this.width, 0);
     }
     
+    // Draw vehicle at origin (0, 0) relative to vehicle position
     this.drawVehicle(ctx);
     ctx.restore();
   }
